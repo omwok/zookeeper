@@ -56,12 +56,21 @@
         internal string hosts;
         internal readonly ZooKeeper zooKeeper;
         internal readonly ZKWatchManager watcher;
-        internal readonly List<IPEndPoint> serverAddrs = new List<IPEndPoint>();
+        private  List<IPEndPoint> serverAddrs = new List<IPEndPoint>();
         internal readonly List<AuthData> authInfo = new List<AuthData>();
         //what the....we use default socket connection time out
         //internal TimeSpan connectTimeout;
         internal TimeSpan readTimeout;
         private int isClosed;
+
+        internal List<IPEndPoint> ServerAddress
+        {
+            get
+            {
+                return serverAddrs;
+            }
+        }
+
         public bool IsClosed
         {
             get
@@ -162,7 +171,7 @@
                 serverAddrs.Add(new IPEndPoint(ip, port));
             }
 
-            serverAddrs.OrderBy(s => Guid.NewGuid()); //Random order the servers
+            serverAddrs = new List<IPEndPoint>(serverAddrs.OrderBy(s => Guid.NewGuid())); //Random order the servers
         }
 
         private void SetTimeouts(TimeSpan sessionTimeout)
