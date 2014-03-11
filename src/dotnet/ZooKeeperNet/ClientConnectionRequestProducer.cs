@@ -238,9 +238,9 @@ namespace ZooKeeperNet
             }
             zooKeeper.State = ZooKeeper.States.CONNECTING;
             currentConnectIndex = nextAddrToTry;
-            IPEndPoint addr = conn.serverAddrs[nextAddrToTry];
+            IPEndPoint addr = conn.ServerAddress[nextAddrToTry];
             nextAddrToTry++;
-            if (nextAddrToTry == conn.serverAddrs.Count)
+            if (nextAddrToTry == conn.ServerAddress.Count)
                 nextAddrToTry = 0;
 
             LOG.InfoFormat("Opening socket connection to server {0}", addr);
