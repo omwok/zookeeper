@@ -27,10 +27,7 @@ namespace ZooKeeperNet
         internal readonly System.Collections.Concurrent.ConcurrentQueue<Packet> outgoingQueue = new System.Collections.Concurrent.ConcurrentQueue<Packet>();
 
         private TcpClient client;
-        private int lastConnectIndex;
         private readonly Random random = new Random();
-        private int nextAddrToTry;
-        private int currentConnectIndex;
         private int initialized;
         internal long lastZxid;
         private long lastPingSentNs;
@@ -207,54 +204,37 @@ namespace ZooKeeperNet
 
         private void StartConnect()
         {
-            if (lastConnectIndex == -1)
+            while (true)
             {
-                // We don't want to delay the first try at a connect, so we
-                // start with -1 the first time around
-                lastConnectIndex = 0;
-            }
-            else
-            {
-                try
-                {
-                    Thread.Sleep(new TimeSpan(0, 0, 0, 0, random.Next(0, 50)));
-                }
-                catch (ThreadInterruptedException e1)
-                {
-                    LOG.Warn("Unexpected exception", e1);
-                }
-                if (nextAddrToTry == lastConnectIndex)
+                foreach (var addr in conn.ServerAddress)
                 {
                     try
                     {
-                        // Try not to spin too fast!
-                        Thread.Sleep(1000);
+                        zooKeeper.State = ZooKeeper.States.CONNECTING;
+                        LOG.InfoFormat("Opening socket connection to server {0}", addr);
+
+                        client = new TcpClient();
+                        client.LingerState = new LingerOption(false, 0);
+                        client.NoDelay = true;
+
+                        Interlocked.Exchange(ref initialized, 0);
+                        IsConnectionClosedByServer = false;
+
+                        client.Connect(addr);
+
+                        client.GetStream().BeginRead(incomingBuffer, 0, incomingBuffer.Length, ReceiveAsynch, incomingBuffer);
+                        PrimeConnection();
+                        return;
                     }
-                    catch (ThreadInterruptedException e)
+                    catch (Exception ex)
                     {
-                        LOG.Warn("Unexpected exception", e);
+                        LOG.Error(ex);
+                        Thread.Sleep(new TimeSpan(0, 0, 0, 0, random.Next(0, 50)));    
                     }
                 }
+                
+                Thread.Sleep(1000);
             }
-            zooKeeper.State = ZooKeeper.States.CONNECTING;
-            currentConnectIndex = nextAddrToTry;
-            IPEndPoint addr = conn.ServerAddress[nextAddrToTry];
-            nextAddrToTry++;
-            if (nextAddrToTry == conn.ServerAddress.Count)
-                nextAddrToTry = 0;
-
-            LOG.InfoFormat("Opening socket connection to server {0}", addr);
-            client = new TcpClient();
-            client.LingerState = new LingerOption(false, 0);
-            client.NoDelay = true;
-            
-            Interlocked.Exchange(ref initialized, 0);
-            IsConnectionClosedByServer = false;
-            
-            client.Connect(addr);
-            
-            client.GetStream().BeginRead(incomingBuffer, 0, incomingBuffer.Length, ReceiveAsynch, incomingBuffer);
-            PrimeConnection();
         }
 
         private byte[] juteBuffer;
